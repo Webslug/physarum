@@ -1,0 +1,527 @@
+<title>Physarum Dish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: lab-bench console. Dish (canvas) left, instrument panel right; stacks on phones. Single dark look by choice: a petri dish under a lamp. */
+:root {
+  --agar-deep: #100c07;
+  --agar-panel: #1a140c;
+  --agar-line: #3a2e1c;
+  --plasmodium: #f2c230;
+  --plasmodium-pale: #fff1b8;
+  --ink-body: #e8dcc4;
+  --ink-muted: #a3957a;
+  --oat: #d9c9a3;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-data: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--agar-deep); color: var(--ink-body); }
+body { font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.page_shell { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 40px; display: grid; gap: 20px; }
+.page_header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+.page_header h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.7rem, 4vw, 2.5rem); letter-spacing: -0.02em; margin: 0; color: var(--plasmodium); text-wrap: balance; }
+.page_header h1 em { font-style: normal; color: var(--ink-muted); font-weight: 500; }
+.page_header p { margin: 0; color: var(--ink-muted); font-family: var(--font-data); font-size: 12px; letter-spacing: 0.04em; }
+
+.bench_grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .bench_grid { grid-template-columns: minmax(0, 1fr); } }
+
+.dish_frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--agar-line), 0 20px 60px -20px rgba(242,194,48,0.18); }
+.dish_frame canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; cursor: crosshair; touch-action: manipulation; }
+.dish_hint { position: absolute; left: 12px; bottom: 10px; font-family: var(--font-data); font-size: 11px; color: var(--ink-muted); background: rgba(16,12,7,0.72); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+.dish_readout { position: absolute; right: 12px; top: 10px; font-family: var(--font-data); font-size: 11px; color: var(--plasmodium-pale); background: rgba(16,12,7,0.72); padding: 4px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; pointer-events: none; }
+
+.panel_stack { display: grid; gap: 16px; background: var(--agar-panel); border: 1px solid var(--agar-line); border-radius: 14px; padding: 16px; }
+.panel_section { display: grid; gap: 10px; }
+.panel_label { font-family: var(--font-data); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); margin: 0; }
+.preset_row, .action_row { display: flex; flex-wrap: wrap; gap: 6px; }
+button { font-family: var(--font-data); font-size: 12px; background: transparent; color: var(--ink-body); border: 1px solid var(--agar-line); border-radius: 7px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--plasmodium); color: var(--plasmodium-pale); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--plasmodium); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--plasmodium); color: var(--agar-deep); border-color: var(--plasmodium); }
+.param_row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+.param_row label { font-family: var(--font-data); font-size: 12px; }
+.param_row output { font-family: var(--font-data); font-size: 12px; color: var(--plasmodium); font-variant-numeric: tabular-nums; }
+.param_row input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--plasmodium); margin: 0; }
+select { font-family: var(--font-data); font-size: 12px; background: var(--agar-deep); color: var(--ink-body); border: 1px solid var(--agar-line); border-radius: 7px; padding: 5px 8px; width: 100%; }
+
+.notes_grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px 32px; border-top: 1px solid var(--agar-line); padding-top: 20px; }
+.notes_grid article { min-width: 0; max-width: 62ch; }
+.notes_grid h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; margin: 0 0 6px; color: var(--plasmodium-pale); text-wrap: balance; }
+.notes_grid p { margin: 0 0 8px; color: var(--ink-body); }
+.notes_grid code { font-family: var(--font-data); font-size: 12.5px; color: var(--plasmodium); }
+.notes_grid a { color: var(--plasmodium); }
+</style>
+
+<div class="page_shell">
+  <header class="page_header">
+    <h1>Physarum Dish <em>· a slime mould that builds roads</em></h1>
+    <p>Physarum polycephalum · agent model after Jones (2010)</p>
+  </header>
+
+  <div class="bench_grid">
+    <div class="dish_frame">
+      <canvas id="dish_canvas" width="640" height="400" aria-label="Slime mould simulation. Click to place or remove oat flakes."></canvas>
+      <div class="dish_readout" id="dish_readout">— agents · — fps</div>
+      <div class="dish_hint">Click the dish to drop an oat · click an oat to remove it</div>
+    </div>
+
+    <aside class="panel_stack" aria-label="Simulation controls">
+      <section class="panel_section">
+        <p class="panel_label">Behaviour preset</p>
+        <div class="preset_row" id="preset_row"></div>
+      </section>
+
+      <section class="panel_section">
+        <p class="panel_label">Dish</p>
+        <div class="action_row">
+          <button id="button_pause" type="button" aria-pressed="false">Pause</button>
+          <button id="button_reseed" type="button">Reseed mould</button>
+          <button id="button_scatter" type="button">Scatter oats</button>
+          <button id="button_clear" type="button">Clear oats</button>
+        </div>
+        <label class="panel_label" for="select_population">Population</label>
+        <select id="select_population">
+          <option value="20000">20,000 agents</option>
+          <option value="50000" selected>50,000 agents</option>
+          <option value="100000">100,000 agents</option>
+          <option value="200000">200,000 agents</option>
+        </select>
+      </section>
+
+      <section class="panel_section" id="param_section">
+        <p class="panel_label">Agent genome</p>
+      </section>
+    </aside>
+  </div>
+
+  <section class="notes_grid">
+    <article>
+      <h2>What each agent knows</h2>
+      <p>Almost nothing. Every speck has a position, a heading, and three "nostrils" pointing ahead, ahead-left and ahead-right at <code>sensor distance</code>. Each tick it sniffs the chemical trail at those three points, turns toward the strongest, steps forward, and leaves a little trail behind.</p>
+      <p>The dish then blurs the trail by one cell and multiplies it by the <code>decay</code> factor. That is the entire rule set.</p>
+    </article>
+    <article>
+      <h2>What I found playing with it</h2>
+      <p>The sensor angle to turn angle ratio is the steering wheel. Around 1:2 you get branching networks. Push the sensors wide and turning narrow and the mould collapses into drifting cells. Long sensor reach with slow decay gives fat, looping arteries.</p>
+      <p>Oats emit a constant chemical, so the network pulls itself into roughly the shortest tubes linking them, and prunes redundant branches as the weaker trails evaporate.</p>
+    </article>
+    <article>
+      <h2>Why this is famous</h2>
+      <p>In 2010, Tero and colleagues laid oat flakes in the positions of cities around Tokyo and let real Physarum grow between them. The tubes it built closely matched the efficiency and fault tolerance of the actual rail network, without any engineer involved. Try the <code>Scatter oats</code> button and watch the same kind of compromise form.</p>
+    </article>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   SECTION 01 · CONFIG
+   ============================================================ */
+const SIM_CONFIG = Object.freeze({
+  gridWidth: 640,
+  gridHeight: 400,
+  oatRadius: 5,
+  oatEmission: 12,
+  oatHitRadius: 10,
+  trailCeiling: 400,
+  prewarmSteps: 90,
+});
+
+const PARAM_SCHEMA = Object.freeze([
+  { key: "sensorAngleDeg", label: "Sensor angle", min: 5, max: 90, step: 0.5, unit: "°" },
+  { key: "turnAngleDeg",   label: "Turn angle",   min: 5, max: 90, step: 0.5, unit: "°" },
+  { key: "sensorDistance", label: "Sensor distance", min: 2, max: 30, step: 0.5, unit: " px" },
+  { key: "stepSize",       label: "Step size",    min: 0.5, max: 3, step: 0.1, unit: " px" },
+  { key: "depositAmount",  label: "Deposit",      min: 1, max: 20, step: 0.5, unit: "" },
+  { key: "decayFactor",    label: "Decay",        min: 0.80, max: 0.99, step: 0.005, unit: "" },
+  { key: "stepsPerFrame",  label: "Speed",        min: 1, max: 4, step: 1, unit: "×" },
+]);
+
+const PARAM_PRESETS = Object.freeze({
+  Network: { sensorAngleDeg: 22.5, turnAngleDeg: 45, sensorDistance: 9,  stepSize: 1,   depositAmount: 5, decayFactor: 0.90,  stepsPerFrame: 2 },
+  Arteries:{ sensorAngleDeg: 30,   turnAngleDeg: 20, sensorDistance: 22, stepSize: 1.4, depositAmount: 4, decayFactor: 0.95,  stepsPerFrame: 2 },
+  Cells:   { sensorAngleDeg: 60,   turnAngleDeg: 15, sensorDistance: 6,  stepSize: 1,   depositAmount: 6, decayFactor: 0.88,  stepsPerFrame: 2 },
+  Lace:    { sensorAngleDeg: 12,   turnAngleDeg: 70, sensorDistance: 4,  stepSize: 0.8, depositAmount: 3, decayFactor: 0.85,  stepsPerFrame: 2 },
+});
+
+/* ============================================================
+   SECTION 02 · STATE
+   ============================================================ */
+const SIM_STATE = {
+  params: { ...PARAM_PRESETS.Network },
+  activePreset: "Network",
+  population: 50000,
+  isPaused: false,
+};
+
+/* ============================================================
+   SECTION 03 · TRAIL FIELD  (chemoattractant grid)
+   ============================================================ */
+const TRAIL_FIELD = (() => {
+  const width = SIM_CONFIG.gridWidth, height = SIM_CONFIG.gridHeight;
+  let cellsCurrent = new Float32Array(width * height);
+  let cellsScratch = new Float32Array(width * height);
+
+  function sampleAt(x, y) {
+    let ix = x | 0, iy = y | 0;
+    ix = ((ix % width) + width) % width;
+    iy = ((iy % height) + height) % height;
+    return cellsCurrent[iy * width + ix];
+  }
+
+  function depositAt(x, y, amount) {
+    const index = (y | 0) * width + (x | 0);
+    const next = cellsCurrent[index] + amount;
+    cellsCurrent[index] = next > SIM_CONFIG.trailCeiling ? SIM_CONFIG.trailCeiling : next;
+  }
+
+  /* Separable 3-tap box blur with wrap-around edges, then decay. */
+  function diffuseAndDecay(decayFactor) {
+    const src = cellsCurrent, tmp = cellsScratch;
+    for (let y = 0; y < height; y++) {
+      const row = y * width;
+      for (let x = 0; x < width; x++) {
+        const xl = x === 0 ? width - 1 : x - 1;
+        const xr = x === width - 1 ? 0 : x + 1;
+        tmp[row + x] = src[row + xl] + src[row + x] + src[row + xr];
+      }
+    }
+    const scale = decayFactor / 9;
+    for (let y = 0; y < height; y++) {
+      const rowUp = (y === 0 ? height - 1 : y - 1) * width;
+      const row = y * width;
+      const rowDown = (y === height - 1 ? 0 : y + 1) * width;
+      for (let x = 0; x < width; x++) {
+        src[row + x] = (tmp[rowUp + x] + tmp[row + x] + tmp[rowDown + x]) * scale;
+      }
+    }
+  }
+
+  function clear() { cellsCurrent.fill(0); }
+  function cells() { return cellsCurrent; }
+
+  return { width, height, sampleAt, depositAt, diffuseAndDecay, clear, cells };
+})();
+
+/* ============================================================
+   SECTION 04 · AGENT SWARM
+   ============================================================ */
+const AGENT_SWARM = (() => {
+  let posX = new Float32Array(0), posY = new Float32Array(0), heading = new Float32Array(0);
+  let count = 0;
+
+  /* Spawn in a disc at the dish centre, facing outward: the mould grows from an inoculation point. */
+  function seed(population) {
+    count = population;
+    posX = new Float32Array(count);
+    posY = new Float32Array(count);
+    heading = new Float32Array(count);
+    const cx = TRAIL_FIELD.width / 2, cy = TRAIL_FIELD.height / 2;
+    const spawnRadius = Math.min(cx, cy) * 0.35;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.sqrt(Math.random()) * spawnRadius;
+      posX[i] = cx + Math.cos(angle) * radius;
+      posY[i] = cy + Math.sin(angle) * radius;
+      heading[i] = angle;
+    }
+  }
+
+  function step(params) {
+    const width = TRAIL_FIELD.width, height = TRAIL_FIELD.height;
+    const sensorAngle = params.sensorAngleDeg * Math.PI / 180;
+    const turnAngle = params.turnAngleDeg * Math.PI / 180;
+    const reach = params.sensorDistance, stride = params.stepSize, deposit = params.depositAmount;
+    const sample = TRAIL_FIELD.sampleAt;
+
+    for (let i = 0; i < count; i++) {
+      const x = posX[i], y = posY[i];
+      let h = heading[i];
+
+      const senseFront = sample(x + Math.cos(h) * reach, y + Math.sin(h) * reach);
+      const senseLeft  = sample(x + Math.cos(h - sensorAngle) * reach, y + Math.sin(h - sensorAngle) * reach);
+      const senseRight = sample(x + Math.cos(h + sensorAngle) * reach, y + Math.sin(h + sensorAngle) * reach);
+
+      if (senseFront > senseLeft && senseFront > senseRight) {
+        /* keep heading */
+      } else if (senseFront < senseLeft && senseFront < senseRight) {
+        h += (Math.random() < 0.5 ? -1 : 1) * turnAngle;
+      } else if (senseLeft > senseRight) {
+        h -= turnAngle;
+      } else if (senseRight > senseLeft) {
+        h += turnAngle;
+      }
+
+      let nx = x + Math.cos(h) * stride;
+      let ny = y + Math.sin(h) * stride;
+      if (nx < 0) nx += width; else if (nx >= width) nx -= width;
+      if (ny < 0) ny += height; else if (ny >= height) ny -= height;
+
+      posX[i] = nx; posY[i] = ny; heading[i] = h;
+      TRAIL_FIELD.depositAt(nx, ny, deposit);
+    }
+  }
+
+  return { seed, step, get count() { return count; } };
+})();
+
+/* ============================================================
+   SECTION 05 · OAT NODES  (food sources)
+   ============================================================ */
+const OAT_NODES = (() => {
+  const nodes = [];
+
+  function emit() {
+    const r = SIM_CONFIG.oatRadius;
+    for (const node of nodes) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy > r * r) continue;
+          const x = node.x + dx, y = node.y + dy;
+          if (x < 0 || y < 0 || x >= TRAIL_FIELD.width || y >= TRAIL_FIELD.height) continue;
+          TRAIL_FIELD.depositAt(x, y, SIM_CONFIG.oatEmission);
+        }
+      }
+    }
+  }
+
+  function toggleAt(x, y) {
+    const hit = SIM_CONFIG.oatHitRadius;
+    const index = nodes.findIndex(n => (n.x - x) ** 2 + (n.y - y) ** 2 <= hit * hit);
+    if (index >= 0) nodes.splice(index, 1);
+    else nodes.push({ x: Math.round(x), y: Math.round(y) });
+  }
+
+  function scatter(total) {
+    nodes.length = 0;
+    const margin = 30;
+    let attempts = 0;
+    while (nodes.length < total && attempts < 500) {
+      attempts++;
+      const x = margin + Math.random() * (TRAIL_FIELD.width - margin * 2);
+      const y = margin + Math.random() * (TRAIL_FIELD.height - margin * 2);
+      if (nodes.every(n => (n.x - x) ** 2 + (n.y - y) ** 2 > 60 * 60)) nodes.push({ x: Math.round(x), y: Math.round(y) });
+    }
+  }
+
+  function clear() { nodes.length = 0; }
+  function list() { return nodes; }
+
+  return { emit, toggleAt, scatter, clear, list };
+})();
+
+/* ============================================================
+   SECTION 06 · RENDERER
+   ============================================================ */
+const RENDERER = (() => {
+  const canvas = document.getElementById("dish_canvas");
+  const context = canvas.getContext("2d");
+  const image = context.createImageData(TRAIL_FIELD.width, TRAIL_FIELD.height);
+  const pixels = new Uint32Array(image.data.buffer);
+
+  /* 256-step colour ramp: dark agar → ochre → plasmodium yellow → pale cream. Packed ABGR (little-endian). */
+  const COLOUR_RAMP = (() => {
+    const stops = [
+      [0.00, [10, 7, 4]],
+      [0.18, [58, 36, 10]],
+      [0.45, [176, 120, 22]],
+      [0.72, [242, 194, 48]],
+      [1.00, [255, 246, 205]],
+    ];
+    const ramp = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const t = i / 255;
+      let s = 0;
+      while (s < stops.length - 2 && t > stops[s + 1][0]) s++;
+      const [t0, c0] = stops[s], [t1, c1] = stops[s + 1];
+      const f = (t - t0) / (t1 - t0);
+      const r = c0[0] + (c1[0] - c0[0]) * f;
+      const g = c0[1] + (c1[1] - c0[1]) * f;
+      const b = c0[2] + (c1[2] - c0[2]) * f;
+      ramp[i] = (255 << 24) | ((b | 0) << 16) | ((g | 0) << 8) | (r | 0);
+    }
+    return ramp;
+  })();
+
+  function draw() {
+    const cells = TRAIL_FIELD.cells();
+    const knee = 12;
+    for (let i = 0; i < cells.length; i++) {
+      const v = cells[i];
+      pixels[i] = COLOUR_RAMP[(255 * v / (v + knee)) | 0];
+    }
+    context.putImageData(image, 0, 0);
+
+    for (const node of OAT_NODES.list()) {
+      context.beginPath();
+      context.ellipse(node.x, node.y, SIM_CONFIG.oatRadius + 1.5, SIM_CONFIG.oatRadius, 0.6, 0, Math.PI * 2);
+      context.fillStyle = "#d9c9a3";
+      context.fill();
+      context.lineWidth = 1;
+      context.strokeStyle = "#100c07";
+      context.stroke();
+    }
+  }
+
+  function toGrid(clientX, clientY) {
+    const box = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - box.left) / box.width * TRAIL_FIELD.width,
+      y: (clientY - box.top) / box.height * TRAIL_FIELD.height,
+    };
+  }
+
+  return { draw, toGrid, canvas };
+})();
+
+/* ============================================================
+   SECTION 07 · CONTROL PANEL
+   ============================================================ */
+const CONTROL_PANEL = (() => {
+  const presetRow = document.getElementById("preset_row");
+  const paramSection = document.getElementById("param_section");
+  const sliderInputs = {};
+  const sliderOutputs = {};
+  const presetButtons = {};
+
+  function formatValue(schema, value) {
+    const digits = schema.step < 0.01 ? 3 : schema.step < 1 ? 1 : 0;
+    return Number(value).toFixed(digits) + schema.unit;
+  }
+
+  function buildPresetButtons() {
+    for (const name of Object.keys(PARAM_PRESETS)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = name;
+      button.id = "preset_" + name.toLowerCase();
+      button.addEventListener("click", () => applyPreset(name));
+      presetButtons[name] = button;
+      presetRow.appendChild(button);
+    }
+  }
+
+  function buildSliders() {
+    for (const schema of PARAM_SCHEMA) {
+      const row = document.createElement("div");
+      row.className = "param_row";
+      const inputId = "param_" + schema.key;
+      row.innerHTML = `<label for="${inputId}">${schema.label}</label><output for="${inputId}"></output>
+        <input type="range" id="${inputId}" min="${schema.min}" max="${schema.max}" step="${schema.step}">`;
+      const input = row.querySelector("input");
+      const output = row.querySelector("output");
+      input.addEventListener("input", () => {
+        SIM_STATE.params[schema.key] = Number(input.value);
+        output.textContent = formatValue(schema, input.value);
+        markPreset(null);
+      });
+      sliderInputs[schema.key] = input;
+      sliderOutputs[schema.key] = output;
+      paramSection.appendChild(row);
+    }
+  }
+
+  function syncSliders() {
+    for (const schema of PARAM_SCHEMA) {
+      const value = SIM_STATE.params[schema.key];
+      sliderInputs[schema.key].value = value;
+      sliderOutputs[schema.key].textContent = formatValue(schema, value);
+    }
+  }
+
+  function markPreset(name) {
+    SIM_STATE.activePreset = name;
+    for (const [key, button] of Object.entries(presetButtons)) button.setAttribute("aria-pressed", String(key === name));
+  }
+
+  function applyPreset(name) {
+    SIM_STATE.params = { ...PARAM_PRESETS[name] };
+    syncSliders();
+    markPreset(name);
+  }
+
+  function bindActions() {
+    const pauseButton = document.getElementById("button_pause");
+    pauseButton.addEventListener("click", () => {
+      SIM_STATE.isPaused = !SIM_STATE.isPaused;
+      pauseButton.setAttribute("aria-pressed", String(SIM_STATE.isPaused));
+      pauseButton.textContent = SIM_STATE.isPaused ? "Resume" : "Pause";
+    });
+    document.getElementById("button_reseed").addEventListener("click", () => {
+      TRAIL_FIELD.clear();
+      AGENT_SWARM.seed(SIM_STATE.population);
+    });
+    document.getElementById("button_scatter").addEventListener("click", () => OAT_NODES.scatter(11));
+    document.getElementById("button_clear").addEventListener("click", () => OAT_NODES.clear());
+    document.getElementById("select_population").addEventListener("change", event => {
+      SIM_STATE.population = Number(event.target.value);
+      TRAIL_FIELD.clear();
+      AGENT_SWARM.seed(SIM_STATE.population);
+    });
+    RENDERER.canvas.addEventListener("pointerdown", event => {
+      const point = RENDERER.toGrid(event.clientX, event.clientY);
+      OAT_NODES.toggleAt(point.x, point.y);
+      if (SIM_STATE.isPaused) RENDERER.draw();
+    });
+  }
+
+  function init() {
+    buildPresetButtons();
+    buildSliders();
+    syncSliders();
+    markPreset(SIM_STATE.activePreset);
+    bindActions();
+  }
+
+  return { init };
+})();
+
+/* ============================================================
+   SECTION 08 · MAIN LOOP
+   ============================================================ */
+const MAIN_LOOP = (() => {
+  const readout = document.getElementById("dish_readout");
+  let frameCount = 0, lastStamp = performance.now(), fps = 0;
+
+  function tick() {
+    AGENT_SWARM.step(SIM_STATE.params);
+    OAT_NODES.emit();
+    TRAIL_FIELD.diffuseAndDecay(SIM_STATE.params.decayFactor);
+  }
+
+  function frame(now) {
+    if (!SIM_STATE.isPaused) {
+      for (let s = 0; s < SIM_STATE.params.stepsPerFrame; s++) tick();
+      RENDERER.draw();
+    }
+    frameCount++;
+    if (now - lastStamp > 500) {
+      fps = Math.round(frameCount * 1000 / (now - lastStamp));
+      frameCount = 0; lastStamp = now;
+      readout.textContent = `${AGENT_SWARM.count.toLocaleString()} agents · ${SIM_STATE.isPaused ? "paused" : fps + " fps"}`;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function start() {
+    CONTROL_PANEL.init();
+    OAT_NODES.scatter(9);
+    AGENT_SWARM.seed(SIM_STATE.population);
+    for (let s = 0; s < SIM_CONFIG.prewarmSteps; s++) tick();   /* first still frame already shows a network */
+    RENDERER.draw();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.getElementById("button_pause").click();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  return { start };
+})();
+
+MAIN_LOOP.start();
+</script>
